@@ -1,0 +1,12 @@
+*.pyc
+# Large artifacts / datasets / checkpoints
+
+# Build artifacts
+build/
+install/
+log/
+geort.egg-info/
+imgui.ini
+
+# Shared libs / binaries
+*.so
