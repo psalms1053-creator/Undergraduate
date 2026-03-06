@@ -28,12 +28,12 @@ def main():
     config = get_config(args.hand)
     hand = HandKinematicModel.build_from_config(config, render=True)
     viewer_env = hand.get_viewer_env()
-
+    '''
     for link in hand.hand.get_links():
         for shape in link.get_collision_shapes():
             # (group0, group1, group2, group3) -> 모두 0으로 설정하여 충돌 무시
             shape.set_collision_groups(0, 0, 0, 0)
-    
+    '''
     # Run!
     while True:
         viewer_env.update()

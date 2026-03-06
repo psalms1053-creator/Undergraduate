@@ -7,33 +7,49 @@ from geort.model import FKModel, IKModel
 import os
 
 # ================= 사용자 설정 =================
+
+# [추가] 핸드 이름 정의 (aidin_right_test.py 설정을 불러오기 위함)
+HAND_NAME = "aidin_right_mimic"
+
 '''
 base_path = "/home/jy/ros2_ws/src/GeoRT"
-HUMAN_DATA_PATH = os.path.join(base_path, "data/AIDIN_TEST_0211.npy")
+HUMAN_DATA_PATH = os.path.join(base_path, "data/AIDIN_TEST_0212.npy")
 URDF_PATH = os.path.join(base_path, "assets/dg5f_right/dg5f_right.urdf")
 '''
 base_path = "/home/jy/ros2_ws/src/GeoRT"
-HUMAN_DATA_PATH = os.path.join(base_path, "data/AIDIN_TEST_0211.npy")
+HUMAN_DATA_PATH = os.path.join(base_path, "data/AIDIN_TEST_0304.npy")
 URDF_PATH = os.path.join(base_path, "assets/ASSY_Hand_R/test_fixed.urdf")
-
+#'''
 # 체크포인트 경로 (확인 필수!)
 # /home/jy/ros2_ws/src/GeoRT/checkpoint/fk_model_aidin_right_test.pth
 # /home/jy/ros2_ws/src/GeoRT/checkpoint/aidin_right_test_last/last.pth
+
 '''
 FK_CKPT_PATH = os.path.join(base_path, "checkpoint/fk_model_dg5f_right.pth")
 IK_CKPT_PATH = os.path.join(base_path, "checkpoint/dg5f_right_last/last.pth")
 '''
 FK_CKPT_PATH = os.path.join(base_path, "checkpoint/fk_model_aidin_right_test.pth")
 IK_CKPT_PATH = os.path.join(base_path, "checkpoint/aidin_right_test_last/last.pth")
-
+#'''
 # 샘플 개수 설정
 NUM_BG_SAMPLES = 300  # 배경에 깔릴 로봇 작업 영역 (Blue/Red)
-NUM_IK_SAMPLES = 100   # IK 성능 검증용 샘플 (Green/Orange) - 너무 많으면 선이 복잡함
+NUM_IK_SAMPLES = 60   # IK 성능 검증용 샘플 (Green/Orange) - 너무 많으면 선이 복잡함
 # ==============================================
 
 def visualize_complete():
     print("📊 [종합 시각화] FK(GT/Pred) + Human + IK Result 로딩 중...")
-
+    
+    # [직접 정의] get_config 대신 사용할 로봇 설정
+    robot_config = {
+        "fingertip_link": [
+            {"name": "thumb",  "center_offset": [0.024, 0.0, 0.0]},
+            {"name": "index",  "center_offset": [0.0, 0.013, 0.0]},
+            {"name": "middle", "center_offset": [0.0, 0.013, 0.0]},
+            {"name": "ring",   "center_offset": [0.0, 0.013, 0.0]},
+            {"name": "baby",   "center_offset": [0.0, 0.013, 0.0]}
+        ]
+    }
+    
     # 1. 로봇 및 엔진 초기화
     engine = sapien.Engine()
     scene = engine.create_scene()
@@ -85,8 +101,12 @@ def visualize_complete():
     fk_gt_tips = []
     for q in q_raw:
         robot.set_qpos(q)
-        fk_gt_tips.append([link.get_pose().p for link in tip_links])
-    fk_gt_tips = np.array(fk_gt_tips).reshape(-1, 3)
+        for i, link in enumerate(tip_links):
+            offset = robot_config['fingertip_link'][i]['center_offset']
+            p_link = link.get_pose()
+            p_tip = p_link.to_transformation_matrix() @ np.array([*offset, 1.0])
+            fk_gt_tips.append(p_tip[:3])
+    fk_gt_tips = np.array(fk_gt_tips)
 
     # -------------------------------------------------------------------------
     # PART B: Human Data -> IK Prediction -> Robot Execution (핵심 검증)

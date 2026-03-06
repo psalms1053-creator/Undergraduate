@@ -128,9 +128,9 @@ class HandKinematicModel:
         return qpos[self.sim_idx_to_user_idx]
 
     def keypoint_from_qpos(self, qpos, ret_vec=False):
-        '''
-            Get keypoints from hand qpos. qpos is specified using the user order.
-        '''
+
+        # Get keypoints from hand qpos. qpos is specified using the user order.
+
         qpos = self.convert_user_order_to_sim_order(qpos)
         self.pmodel.compute_forward_kinematics(qpos)
         base_pose = self.pmodel.get_link_pose(self.base_link_idx)
@@ -229,9 +229,9 @@ if __name__ == '__main__':
     while True:
         viewer_env.update()
         
-    '''    
+        
         steps += 1
         if steps % 30 == 0:
             targets = np.random.uniform(0, 1, n_dof) * (dof_upper - dof_lower - 1e-7) + dof_lower + 1e-7
             model.set_qpos_target(targets)
-    '''
+    

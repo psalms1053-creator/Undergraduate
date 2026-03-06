@@ -25,6 +25,8 @@ import os
 from pathlib import Path 
 import math
 
+import xml.etree.ElementTree as ET
+
 def merge_dict_list(dl):
     keys = dl[0].keys()
     
@@ -115,7 +117,46 @@ class GeoRTTrainer:
 
         return out 
 
+    def get_mimic_dependencies(self):
+        print("mimic dependencies is running...")
+        """
+        URDF 파일을 파싱하여 mimic 관절의 종속성(인덱스, 비율, 오프셋)을 추출합니다.
+        """
+        # 1. config 딕셔너리에서 자동으로 URDF 경로를 가져옵니다.
+        urdf_path = self.config.get("urdf_path") or self.config.get("urdf")
+        joint_order = self.config["joint_order"]
+        mimic_dependencies = []
+        print(f"[URDF 경로 자동 인식] {urdf_path} 에서 Mimic 정보를 읽어옵니다...")
+
+        if not os.path.exists(urdf_path):
+            print(f"⚠️ URDF 파일을 찾을 수 없어 Mimic 처리를 건너뜁니다: {urdf_path}")
+            return mimic_dependencies
+        
+        try:
+            tree = ET.parse(urdf_path)
+            root = tree.getroot()
+
+            for joint in root.findall('joint'):
+                mimic = joint.find('mimic')
+                if mimic is not None:
+                    child_name = joint.get('name')
+                    parent_name = mimic.get('joint')
+                    multiplier = float(mimic.get('multiplier', '1.0'))
+                    offset = float(mimic.get('offset', '0.0'))
+
+                    # joint_order에 정의된 관절만 추적하여 인덱스 추출
+                    if child_name in joint_order and parent_name in joint_order:
+                        child_idx = joint_order.index(child_name)
+                        parent_idx = joint_order.index(parent_name)
+                        mimic_dependencies.append((child_idx, parent_idx, multiplier, offset))
+                        print(f"[Mimic 적용] {child_name} -> {parent_name} 따라감 (비율: {multiplier}, 오프셋: {offset})")
+        except Exception as e:
+            print(f"⚠️ URDF 파싱 실패 (Mimic 미적용): {e}")
+
+        return mimic_dependencies
+
     def generate_robot_kinematics_dataset(self, n_total=100000, save=True):
+        print("Generating robot kinematics dataset...")
         '''
             This function will generate a (joint position, keypoint position) dataset. 
             - The joint order is specified by "joint_order" in configuration.
@@ -133,9 +174,19 @@ class GeoRTTrainer:
         all_data_qpos = []
         all_data_keypoint = []
         
+        #mimic_dependencies
+        mimic_dependencies = self.get_mimic_dependencies()
+
         for _ in tqdm(range(n_total)):
             qpos = np.random.uniform(0, 1, len(joint_range_low)) * (joint_range_high - joint_range_low) + joint_range_low
+
+            # 기존 코드: 올바르게 수정된 qpos를 가지고 FK(정기구학) 계산
             keypoint = self.hand.keypoint_from_qpos(qpos)
+
+            for child_idx, parent_idx, multiplier, offset in mimic_dependencies:
+                # 공식: 자식 각도 = 부모 각도 * 배율 + 오프셋
+                qpos[child_idx] = qpos[parent_idx] * multiplier + offset
+            
             all_data_qpos.append(qpos)
             all_data_keypoint.append(keypoint)
             
@@ -166,7 +217,7 @@ class GeoRTTrainer:
         qpos_normalizer = HandFormatter(joint_lower_limit, joint_upper_limit)
         
         # Model.
-        print("hello")
+        print("Initializing Neural Forward Kinematics (FK) Model...")
         print(self.get_keypoint_info()["joint"])
         fk_model = FKModel(keypoint_joints=self.get_keypoint_info()["joint"]).cuda()
         
@@ -219,12 +270,12 @@ class GeoRTTrainer:
 
         # Workspace.
         exp_tag = kwargs.get("tag", "")
-        n_epoch = kwargs.get("epoch", 40)
+        n_epoch = kwargs.get("epoch",100)
         hand_model_name = self.config["name"]
 
         w_chamfer = kwargs.get("w_chamfer", 90.0)
         w_curvature = kwargs.get("w_curvature", 1.0)
-        w_pinch = kwargs.get("w_pinch", 300.0)
+        w_pinch = kwargs.get("w_pinch", 1000.0)
         w_collision = kwargs.get("w_collision", 0.0)
 
 
@@ -282,7 +333,7 @@ class GeoRTTrainer:
                 for i in range(n_finger):
                     for j in range(i + 1, n_finger):
                         distance = point[:, i, ...] - point[:, j, ...]
-                        mask = (torch.norm(distance, dim=-1) < 0.003).float()
+                        mask = (torch.norm(distance, dim=-1) < 0.002).float()
                         e_distance = ((embedded_point[:, i, ...] - embedded_point[:, j, ...]) ** 2).sum(dim=-1)
                         pinch_loss += (mask * e_distance).mean() / (mask.sum() + 1e-7) * point.size(0)
 
@@ -336,7 +387,7 @@ class GeoRTTrainer:
                 ik_optim.step()
 
                 if batch_idx % 50 == 0:
-                    '''
+                    
                     print(
                         f"Epoch {epoch} | Losses"
                         f" - Direction: {format_loss(direction_loss.item())}"
@@ -365,6 +416,7 @@ class GeoRTTrainer:
                     print(f" 4. Pinch     : {format_loss(pinch_loss.item())} (raw) x {w_pinch} (w) = {format_loss(val_pinch)}   |"
                           f" 5. Collision : {format_loss(collision_loss.item())} (raw) x {w_collision} (w) = {format_loss(val_coll)}")
                     print("-" * 80)
+                    '''
 
             # Saving the checkpoint.
             torch.save(ik_model.state_dict(), Path(save_dir) / f"epoch_{epoch}.pth")
@@ -384,9 +436,9 @@ if __name__ == '__main__':
     parser.add_argument('-human_data', type=str, default='human')
     parser.add_argument('-ckpt_tag', type=str, default='')
 
-    parser.add_argument('--w_chamfer', type=float, default=80.0)
+    parser.add_argument('--w_chamfer', type=float, default=100.0)
     parser.add_argument('--w_curvature', type=float, default=1.0)
-    parser.add_argument('--w_pinch', type=float, default=4000.0)
+    parser.add_argument('--w_pinch', type=float, default=1000.0)
     parser.add_argument('--w_collision', type=float, default=0.0)
     
     args = parser.parse_args()

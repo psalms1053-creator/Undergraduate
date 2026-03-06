@@ -176,8 +176,8 @@
       xyz="0 0 -1" />
       <!-- upper="1.0471975" -> 1.1 -->
     <limit
-      lower="0.0"
-      upper="1.1"
+      lower="0.01"
+      upper="1.6"
       effort="10.0"
       velocity="1.5707963" />
   </joint>
@@ -237,8 +237,8 @@
       xyz="0 0 -1" />
       <!-- upper="1.0471975" -> 1.1 -->
     <limit
-      lower="0.0"
-      upper="1.1"
+      lower="0.01"
+      upper="1.6"
       effort="10.0"
       velocity="1.5707963" />
   </joint>
@@ -303,7 +303,7 @@
       velocity="0" />
     <mimic
       joint="joint3_thumb_z" 
-      multiplier="-1.1"
+      multiplier="1.1"
       offset="0.0"/>
   </joint>
   
@@ -422,8 +422,8 @@
     <axis
       xyz="0 0 -1" />
     <limit
-      lower="0.1"
-      upper="1.6707963"
+      lower="0.8"
+      upper="2.3"
       effort="10.0"
       velocity="1.5707963" />
   </joint>
@@ -482,8 +482,8 @@
       xyz="0 0 -1" />
       <!-- upper="1.534464" -> 1.634464 -->
     <limit
-      lower="0.0"
-      upper="1.634464"
+      lower="0.05"
+      upper="1.55"
       effort="10.0"
       velocity="1.5707963" />
   </joint>
@@ -542,8 +542,8 @@
       xyz="0 0 -1" />
       <!-- upper="1.5089969" -> 1.6089969" -->
     <limit
-      lower="0.0"
-      upper="1.6089969"
+      lower="0.05"
+      upper="1.55"
       effort="0"
       velocity="0" />
     <mimic
@@ -667,8 +667,8 @@
     <axis
       xyz="0 0 -1" />
     <limit
-      lower="0.1"
-      upper="1.6707963"
+      lower="0.4"
+      upper="1.9"
       effort="10.0"
       velocity="1.5707963"/>
   </joint>
@@ -726,8 +726,8 @@
     <axis
       xyz="0 0 -1" />
     <limit
-      lower="0.0"
-      upper="1.634464"
+      lower="0.05"
+      upper="1.55"
       effort="10.0"
       velocity="1.5707963" />
   </joint>
@@ -785,8 +785,8 @@
     <axis
       xyz="0 0 -1" />
     <limit
-      lower="0.0"
-      upper="1.6089969"
+      lower="0.05"
+      upper="1.55"
       effort="0"
       velocity="0" />
     <mimic
@@ -907,8 +907,8 @@
     <axis
       xyz="0 0 -1" />
     <limit
-      lower="0.1"
-      upper="1.6707963"
+      lower="0.4"
+      upper="1.9"
       effort="10.0"
       velocity="1.5707963" />
   </joint>
@@ -966,8 +966,8 @@
     <axis
       xyz="0 0 -1" />
     <limit
-      lower="0.0"
-      upper="1.634464"
+      lower="0.05"
+      upper="1.55"
       effort="10.0"
       velocity="1.5707963" />
   </joint>
@@ -1025,8 +1025,8 @@
     <axis
       xyz="0 0 -1" />
     <limit
-      lower="0.0"
-      upper="1.6089969"
+      lower="0.05"
+      upper="1.55"
       effort="0"
       velocity="0" />
     <mimic
@@ -1147,8 +1147,8 @@
     <axis
       xyz="0 0 -1" />
     <limit
-      lower="0.1"
-      upper="1.6707963"
+      lower="0.4"
+      upper="1.9"
       effort="10.0"
       velocity="1.5707963" />
   </joint>
@@ -1206,8 +1206,8 @@
     <axis
       xyz="0 0 -1" />
     <limit
-      lower="0.1"
-      upper="1.634464"
+      lower="0.05"
+      upper="1.55"
       effort="10.0"
       velocity="1.5707963" />
   </joint>
@@ -1265,8 +1265,8 @@
     <axis
       xyz="0 0 -1" />
     <limit
-      lower="0.1"
-      upper="1.6089969"
+      lower="0.05"
+      upper="1.55"
       effort="0"
       velocity="0" />
     <mimic

@@ -5,8 +5,8 @@ from geort.model import FKModel
 import os
 
 # ================= 사용자 설정 =================
-URDF_PATH = "/home/jy/ros2_ws/src/GeoRT/assets/ASSY_Hand_R/test_fixed.urdf"
-CKPT_PATH = "/home/jy/ros2_ws/src/GeoRT/checkpoint/fk_model_aidin_right_test.pth"
+URDF_PATH = "/home/jy/ros2_ws/src/GeoRT/assets/ASSY_Hand_R/test_fixed_delmic.urdf"
+CKPT_PATH = "/home/jy/ros2_ws/src/GeoRT/checkpoint/fk_model_aidin_right_mimic.pth"
 NUM_SAMPLES = 1000  # 1000번 테스트
 # ==============================================
 
@@ -111,9 +111,9 @@ def verify_precision():
     print("-" * 40)
     
     # 8. 판정
-    if mean_error < 0.02: # 2cm 미만
+    if mean_error < 0.01: # 1cm 미만
         print("🎉 [PASS] 모델 신뢰성 확보됨. (IK 학습 진행 가능)")
-    elif mean_error < 0.05: # 5cm 미만
+    elif mean_error < 0.03: # 3cm 미만
         print("⚠️ [WARNING] 오차가 다소 큼. 데이터 정규화 방식 재확인 필요.")
     else:
         print("❌ [FAIL] 모델이나 매핑에 심각한 오류가 있음.")
