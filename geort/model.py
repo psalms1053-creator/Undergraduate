@@ -91,3 +91,30 @@ class IKModel(nn.Module):
             joint = self.nets[i](x[:, i])
             out[:, self.keypoint_joints[i]] = joint 
         return out 
+
+class CollisionClassifier(nn.Module):
+    """
+    Self-Collision Classifier optimized for nn.CrossEntropyLoss.
+    Outputs raw logits for 2 classes:
+    - Class 0: Collision (Fake/Unsafe)
+    - Class 1: Safe (Real)
+    """
+    def __init__(self, n_joints, hidden_dim=256):
+        super().__init__()
+        self.net = nn.Sequential(
+            nn.Linear(n_joints, hidden_dim),
+            nn.ReLU(),
+            nn.BatchNorm1d(hidden_dim),
+            nn.Linear(hidden_dim, hidden_dim),
+            nn.ReLU(),
+            nn.BatchNorm1d(hidden_dim),
+            # Output 2 dimensions for CrossEntropy (Class 0 and Class 1)
+            # 💡 IMPORTANT: No Sigmoid or Softmax here! 
+            # nn.CrossEntropyLoss already includes LogSoftmax internally.
+            nn.Linear(hidden_dim, 2) 
+        )
+
+    def forward(self, qpos):
+        # qpos: [Batch, n_joints]
+        # Returns: [Batch, 2] raw logits
+        return self.net(qpos)

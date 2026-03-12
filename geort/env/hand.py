@@ -219,6 +219,14 @@ if __name__ == '__main__':
     model = HandKinematicModel.build_from_config(config, render=True)
     viewer_env = model.get_viewer_env()
    
+    #Collision Groups
+    #'''
+    for link in model.hand.get_links():
+        for shape in link.get_collision_shapes():
+            # (group0, group1, group2, group3) -> 모두 0으로 설정하여 충돌 무시
+            shape.set_collision_groups(0, 0, 0, 0)
+    #'''
+
     # Control Loop
     n_dof = model.get_n_dof()
     dof_lower, dof_upper = model.get_joint_limit()
@@ -234,4 +242,4 @@ if __name__ == '__main__':
         if steps % 30 == 0:
             targets = np.random.uniform(0, 1, n_dof) * (dof_upper - dof_lower - 1e-7) + dof_lower + 1e-7
             model.set_qpos_target(targets)
-    
+        

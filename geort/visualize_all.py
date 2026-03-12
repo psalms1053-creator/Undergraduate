@@ -7,48 +7,30 @@ from geort.model import FKModel, IKModel
 import os
 
 # ================= 사용자 설정 =================
-
-# [추가] 핸드 이름 정의 (aidin_right_test.py 설정을 불러오기 위함)
-HAND_NAME = "aidin_right_mimic"
-
-'''
 base_path = "/home/jy/ros2_ws/src/GeoRT"
-HUMAN_DATA_PATH = os.path.join(base_path, "data/AIDIN_TEST_0212.npy")
-URDF_PATH = os.path.join(base_path, "assets/dg5f_right/dg5f_right.urdf")
-'''
-base_path = "/home/jy/ros2_ws/src/GeoRT"
-HUMAN_DATA_PATH = os.path.join(base_path, "data/AIDIN_TEST_0304.npy")
+HUMAN_DATA_PATH = os.path.join(base_path, "data/0307_2.npy")
 URDF_PATH = os.path.join(base_path, "assets/ASSY_Hand_R/test_fixed.urdf")
-#'''
-# 체크포인트 경로 (확인 필수!)
-# /home/jy/ros2_ws/src/GeoRT/checkpoint/fk_model_aidin_right_test.pth
-# /home/jy/ros2_ws/src/GeoRT/checkpoint/aidin_right_test_last/last.pth
 
-'''
-FK_CKPT_PATH = os.path.join(base_path, "checkpoint/fk_model_dg5f_right.pth")
-IK_CKPT_PATH = os.path.join(base_path, "checkpoint/dg5f_right_last/last.pth")
-'''
 FK_CKPT_PATH = os.path.join(base_path, "checkpoint/fk_model_aidin_right_test.pth")
 IK_CKPT_PATH = os.path.join(base_path, "checkpoint/aidin_right_test_last/last.pth")
-#'''
-# 샘플 개수 설정
-NUM_BG_SAMPLES = 300  # 배경에 깔릴 로봇 작업 영역 (Blue/Red)
-NUM_IK_SAMPLES = 60   # IK 성능 검증용 샘플 (Green/Orange) - 너무 많으면 선이 복잡함
+
+# [수정 1] get_config 대신 파일 내부에 직접 설정 정의
+robot_config = {
+    "fingertip_link": [
+        {"name": "thumb",  "center_offset": [0.024, 0.0, 0.0]},
+        {"name": "index",  "center_offset": [0.0, 0.013, 0.0]},
+        {"name": "middle", "center_offset": [0.0, 0.013, 0.0]},
+        {"name": "ring",   "center_offset": [0.0, 0.013, 0.0]},
+        {"name": "baby",   "center_offset": [0.0, 0.013, 0.0]}
+    ]
+}
+
+NUM_BG_SAMPLES = 300 
+NUM_IK_SAMPLES = 70   
 # ==============================================
 
 def visualize_complete():
     print("📊 [종합 시각화] FK(GT/Pred) + Human + IK Result 로딩 중...")
-    
-    # [직접 정의] get_config 대신 사용할 로봇 설정
-    robot_config = {
-        "fingertip_link": [
-            {"name": "thumb",  "center_offset": [0.024, 0.0, 0.0]},
-            {"name": "index",  "center_offset": [0.0, 0.013, 0.0]},
-            {"name": "middle", "center_offset": [0.0, 0.013, 0.0]},
-            {"name": "ring",   "center_offset": [0.0, 0.013, 0.0]},
-            {"name": "baby",   "center_offset": [0.0, 0.013, 0.0]}
-        ]
-    }
     
     # 1. 로봇 및 엔진 초기화
     engine = sapien.Engine()
@@ -68,36 +50,31 @@ def visualize_complete():
     limits = robot.get_qlimits()
 
     # 2. 모델 로드 (FK & IK)
-    # FK
     fk_model = FKModel(keypoint_joints).cuda()
     if os.path.exists(FK_CKPT_PATH):
-        fk_model.load_state_dict(torch.load(FK_CKPT_PATH))
+        fk_model.load_state_dict(torch.load(FK_CKPT_PATH, weights_only=True))
         fk_model.eval()
         print("✅ FK 모델 로드 완료")
     else:
         print("⚠️ FK 모델 없음 (경로 확인)")
     
-    # IK
     ik_model = IKModel(keypoint_joints).cuda()
     if os.path.exists(IK_CKPT_PATH):
-        ik_model.load_state_dict(torch.load(IK_CKPT_PATH))
+        ik_model.load_state_dict(torch.load(IK_CKPT_PATH, weights_only=True))
         ik_model.eval()
         print("✅ IK 모델 로드 완료")
     else:
         print("⚠️ IK 모델 없음 (경로 확인)")
 
     # -------------------------------------------------------------------------
-    # PART A: Robot Workspace & FK Performance (배경)
+    # PART A: 🔵 파란점 (Robot GT) & 🔴 빨간점 (FK Pred)
     # -------------------------------------------------------------------------
-    # 랜덤 관절 각도 생성
     q_raw = np.random.uniform(limits[:,0], limits[:,1], size=(NUM_BG_SAMPLES, len(limits))).astype(np.float32)
     q_norm = 2 * (q_raw - limits[:,0]) / (limits[:,1] - limits[:,0]) - 1
 
-    # AI 예측 (FK)
     with torch.no_grad():
         fk_pred_tips = fk_model(torch.from_numpy(q_norm).float().cuda()).cpu().numpy().reshape(-1, 3)
 
-    # 실제 로봇 (Ground Truth)
     fk_gt_tips = []
     for q in q_raw:
         robot.set_qpos(q)
@@ -109,7 +86,7 @@ def visualize_complete():
     fk_gt_tips = np.array(fk_gt_tips)
 
     # -------------------------------------------------------------------------
-    # PART B: Human Data -> IK Prediction -> Robot Execution (핵심 검증)
+    # PART B: 🟢 초록점 (Human Target) & 🟠 주황/노란점 (IK Result)
     # -------------------------------------------------------------------------
     human_targets = []
     ik_results = []
@@ -119,48 +96,51 @@ def visualize_complete():
         if len(data.shape) == 2 and data.shape[1] == 63:
             data = data.reshape(-1, 21, 3)
         
-        # 샘플링
         if len(data) > NUM_IK_SAMPLES:
             indices = np.random.choice(len(data), NUM_IK_SAMPLES, replace=False)
             data = data[indices]
 
-        # Target: Human Fingertips
         human_targets = data[:, [4, 8, 12, 16, 20], :] # (B, 5, 3)
         
-        # IK Inference
         with torch.no_grad():
             inp = torch.from_numpy(human_targets).float().cuda()
             pred_q_norm = ik_model(inp).cpu().numpy()
         
-        # Denormalize & Execute
         pred_q_real = (pred_q_norm + 1) * (limits[:,1] - limits[:,0]) / 2 + limits[:,0]
         
         for q in pred_q_real:
             robot.set_qpos(q)
-            ik_results.append([link.get_pose().p for link in tip_links])
-        ik_results = np.array(ik_results) # (B, 5, 3)
+            current_frame_tips = []
+            for i, link in enumerate(tip_links):
+                # [수정 2] IK 결과물에도 center_offset을 적용하여 정확한 손끝 좌표 계산!
+                offset = robot_config['fingertip_link'][i]['center_offset']
+                p_link = link.get_pose()
+                p_tip = p_link.to_transformation_matrix() @ np.array([*offset, 1.0])
+                current_frame_tips.append(p_tip[:3])
+            ik_results.append(current_frame_tips)
+        ik_results = np.array(ik_results) 
     
     # -------------------------------------------------------------------------
-    # PART C: Visualization
+    # PART C: 시각화
     # -------------------------------------------------------------------------
     fig = plt.figure(figsize=(12, 12))
     ax = fig.add_subplot(111, projection='3d')
-    #'''
-    # 1. [배경] Robot GT (파란 점) - 로봇이 갈 수 있는 곳
+
+    # 1. 🔵 Robot GT (파란 점)
     ax.scatter(fk_gt_tips[:,0], fk_gt_tips[:,1], fk_gt_tips[:,2], 
                c='blue', s=5, alpha=0.2, label='Robot Workspace (GT)')
-    #'''
-    # 2. [배경] FK AI Pred (빨간 X) - FK 모델이 학습한 내용
+    
+    # 2. 🔴 FK AI Pred (빨간 X)
     ax.scatter(fk_pred_tips[:,0], fk_pred_tips[:,1], fk_pred_tips[:,2], 
                c='red', marker='x', s=10, alpha=0.2, label='FK Prediction')
-    #'''
-    # 3. [전경] Human Target (초록 동그라미) - 목표
+
+    # 3. 🟢 Human Target (초록 동그라미)
     if len(human_targets) > 0:
         h_flat = human_targets.reshape(-1, 3)
         ax.scatter(h_flat[:,0], h_flat[:,1], h_flat[:,2], 
                    c='green', marker='o', s=20, alpha=0.3, edgecolors='black', label='Human Target')
-    #'''
-    # 4. [전경] IK Result (주황 별) - 로봇이 실제로 수행한 결과
+    
+    # 4. 🟠 IK Result (주황 별 - 로봇이 실제로 수행한 결과)
     if len(ik_results) > 0:
         ik_flat = ik_results.reshape(-1, 3)
         ax.scatter(ik_flat[:,0], ik_flat[:,1], ik_flat[:,2], 
@@ -172,14 +152,13 @@ def visualize_complete():
                     [h_flat[i,1], ik_flat[i,1]],
                     [h_flat[i,2], ik_flat[i,2]],
                     color='gray', alpha=0.3, linewidth=1)
-    #'''
-    # 설정
+
     ax.set_title("Comprehensive Check: Human(Green) -> IK -> Robot(Orange)")
     ax.set_xlabel('X')
     ax.set_ylabel('Y')
     ax.set_zlabel('Z')
-
-    try: ax.set_box_aspect([1, 1, 1])
+    
+    try: ax.set_box_aspect([1.2, 1, 1])
     except: pass
 
     ax.legend()

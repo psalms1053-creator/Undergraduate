@@ -177,7 +177,7 @@
       <!-- upper="1.0471975" -> 1.1 -->
     <limit
       lower="0.01"
-      upper="1.6"
+      upper="1.57"
       effort="10.0"
       velocity="1.5707963" />
   </joint>
@@ -238,7 +238,7 @@
       <!-- upper="1.0471975" -> 1.1 -->
     <limit
       lower="0.01"
-      upper="1.6"
+      upper="1.57"
       effort="10.0"
       velocity="1.5707963" />
   </joint>
@@ -297,13 +297,13 @@
       xyz="0 0 -1" />
       <!-- upper="1.3089969" -> 1.4 -->
     <limit
-      lower="0.1"
-      upper="1.6"
+      lower="0.01"
+      upper="1.57"
       effort="0"
       velocity="0" />
     <mimic
       joint="joint3_thumb_z" 
-      multiplier="1.1"
+      multiplier="1.0"
       offset="0.0"/>
   </joint>
   
@@ -409,12 +409,9 @@
   <joint
     name="joint2_index_z"
     type="revolute">
-    <!-- <origin
-      xyz="0 0 0.01035"
-      rpy="-1.5708 -0.78 1.5708" /> -->
     <origin
       xyz="0 0 0.01035"
-      rpy="-1.5708 0 1.5708" />
+      rpy="-1.5708 -0.78 1.5708" />
     <parent
       link="link1_index" />
     <child
@@ -422,8 +419,8 @@
     <axis
       xyz="0 0 -1" />
     <limit
-      lower="0.8"
-      upper="2.3"
+      lower="0.0"
+      upper="1.5708"
       effort="10.0"
       velocity="1.5707963" />
   </joint>
@@ -548,7 +545,7 @@
       velocity="0" />
     <mimic
       joint="joint3_index_z" 
-      multiplier="1.1"
+      multiplier="1.0"
       offset="0.0"/>
   </joint>
 
@@ -667,8 +664,8 @@
     <axis
       xyz="0 0 -1" />
     <limit
-      lower="0.4"
-      upper="1.9"
+      lower="0.3"
+      upper="1.8708"
       effort="10.0"
       velocity="1.5707963"/>
   </joint>
@@ -791,7 +788,7 @@
       velocity="0" />
     <mimic
       joint="joint3_middle_z" 
-      multiplier="1.1"
+      multiplier="1.0"
       offset="0.0"/>
   </joint>
 
@@ -1031,7 +1028,7 @@
       velocity="0" />
     <mimic
       joint="joint3_ring_z" 
-      multiplier="1.1"
+      multiplier="1.0"
       offset="0.0"/>
   </joint>
   
@@ -1271,7 +1268,7 @@
       velocity="0" />
     <mimic
       joint="joint3_baby_z" 
-      multiplier="1.1"
+      multiplier="1.0"
       offset="0.0"/>
   </joint>
 

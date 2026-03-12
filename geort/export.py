@@ -60,4 +60,4 @@ def load_model(tag='', epoch=0):
 
 if __name__ == '__main__':
     # load the model in one line.
-    load_model(tag="allegro_last")
+    load_model(tag="aidin_right_test_last")

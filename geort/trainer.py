@@ -14,7 +14,7 @@ import torch.nn.functional as F
 from geort.utils.hand_utils import get_entity_by_name, get_active_joints, get_active_joint_indices
 from geort.utils.path import get_human_data 
 from geort.utils.config_utils import get_config, save_json
-from geort.model import FKModel, IKModel 
+from geort.model import CollisionClassifier, FKModel, IKModel 
 from geort.env.hand import HandKinematicModel
 from geort.loss import chamfer_distance
 from geort.formatter import HandFormatter
@@ -26,6 +26,7 @@ from pathlib import Path
 import math
 
 import xml.etree.ElementTree as ET
+import torch.nn.functional as F
 
 def merge_dict_list(dl):
     keys = dl[0].keys()
@@ -186,6 +187,12 @@ class GeoRTTrainer:
             for child_idx, parent_idx, multiplier, offset in mimic_dependencies:
                 # 공식: 자식 각도 = 부모 각도 * 배율 + 오프셋
                 qpos[child_idx] = qpos[parent_idx] * multiplier + offset
+                #자식 관절의 각도가 자신의 Limit을 넘지 않도록 안전하게 자름!
+                qpos[child_idx] = np.clip(
+                    qpos[child_idx], 
+                    joint_range_low[child_idx], 
+                    joint_range_high[child_idx]
+                )
             
             all_data_qpos.append(qpos)
             all_data_keypoint.append(keypoint)
@@ -270,7 +277,7 @@ class GeoRTTrainer:
 
         # Workspace.
         exp_tag = kwargs.get("tag", "")
-        n_epoch = kwargs.get("epoch",100)
+        n_epoch = kwargs.get("epoch",40)
         hand_model_name = self.config["name"]
 
         w_chamfer = kwargs.get("w_chamfer", 90.0)
@@ -369,16 +376,34 @@ class GeoRTTrainer:
                 direction_loss = -(((F.normalize(d1, dim=-1, p=2, eps=1e-5) * F.normalize(d2, dim=-1, p=2, eps=1e-5)).sum(-1))).mean()
 
                 # [Collision loss]
-                # if classifier is not None:
-                #     real_labels = torch.ones(joint.size(0), dtype=torch.long).to(joint.device)
-                #     # Discriminator's output for generated data
-                #     safe_logits = classifier(joint)
-                #     criterion = nn.CrossEntropyLoss()
-                #     # Generator loss is the cross-entropy loss between the fake outputs and the label 1 (real)
-                #     collision_loss = criterion(safe_logits, real_labels)
+                classifier = CollisionClassifier(n_joints=ik_model.n_total_joint).cuda()
+                classifier.eval() # Freeze the classifier during IK model training
+
+                collision_loss = torch.tensor([0.0]).cuda()
+
+                if args.w_collision > 0.0 and classifier is not None:
+                    # The IK model (Generator) wants the classifier to predict 1 (Safe/Real)
+                    real_labels = torch.ones(joint.size(0), dtype=torch.long).to(joint.device)
+    
+                    # Discriminator's output for generated data (shape: [Batch, 2])
+                    safe_logits = classifier(joint)
+    
+                    criterion = nn.CrossEntropyLoss()
+    
+                    # Generator loss is the cross-entropy loss between the fake outputs and the label 1 (real)
+                    collision_loss = criterion(safe_logits, real_labels)
+                '''
+                if classifier is not None:
+                    real_labels = torch.ones(joint.size(0), dtype=torch.long).to(joint.device)
+                    # Discriminator's output for generated data
+                    safe_logits = classifier(joint)
+                    criterion = nn.CrossEntropyLoss()
+                    # Generator loss is the cross-entropy loss between the fake outputs and the label 1 (real)
+                    collision_loss = criterion(safe_logits, real_labels)
                 
                 # collision Loss integration pending.
                 collision_loss = torch.tensor([0.0]).cuda()
+                '''
 
                 loss = direction_loss + chamfer_loss * w_chamfer + curvature_loss * w_curvature + collision_loss * w_collision + pinch_loss * w_pinch
 
@@ -436,10 +461,10 @@ if __name__ == '__main__':
     parser.add_argument('-human_data', type=str, default='human')
     parser.add_argument('-ckpt_tag', type=str, default='')
 
-    parser.add_argument('--w_chamfer', type=float, default=100.0)
+    parser.add_argument('--w_chamfer', type=float, default=80.0)
     parser.add_argument('--w_curvature', type=float, default=1.0)
     parser.add_argument('--w_pinch', type=float, default=1000.0)
-    parser.add_argument('--w_collision', type=float, default=0.0)
+    parser.add_argument('--w_collision', type=float, default=0.001)
     
     args = parser.parse_args()
 

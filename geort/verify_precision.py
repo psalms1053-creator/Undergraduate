@@ -78,9 +78,17 @@ def verify_precision():
     # 6. 정답(GT) 추출 및 오차 계산
     errors = [] # 전체 오차 저장
     per_finger_errors = [[] for _ in range(5)] # 손가락별 오차 저장
+    
+    # (선택적 안전장치) 혹시 모를 inf 값이 있는지 체크
+    if np.isinf(limits).any():
+        print("⚠️ [경고] URDF joint limit에 무한대(inf)가 포함되어 있어 랜덤 포즈 생성이 부정확할 수 있습니다.")
 
     for i in range(NUM_SAMPLES):
         robot.set_qpos(q_batch_raw[i]) # 로봇에는 Raw값 입력
+        
+        # [수정된 부분] SAPIEN 엔진에 관절값이 변경되었음을 알리고 3D 위치를 갱신합니다.
+        if hasattr(robot, 'compute_forward_kinematics'):
+            robot.compute_forward_kinematics() # SAPIEN 최신 버전에 따른 안전장치
         
         for f_idx, link in enumerate(target_links):
             gt_pos = link.get_pose().p # (3,)
